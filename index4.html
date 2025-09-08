@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<title>Previsão do Tempo EUA</title>
+<style>
+  body { font-family: Arial, sans-serif; padding: 20px; background: #f4f4f4; }
+  h2 { margin-bottom: 10px; }
+  button { padding: 5px 10px; margin-top: 10px; }
+  table { border-collapse: collapse; margin: 10px 0; width: 100%; background: #fff; box-shadow: 0 0 5px rgba(0,0,0,0.2);}
+  th, td { border: 1px solid #333; padding: 6px 10px; text-align: center; }
+  td.clima { font-weight: bold; color: #fff; }
+  .sol { background-color: #FFD700; color: #000; }
+  .sol_nuvens { background-color: #FFA500; }
+  .nuvens { background-color: #A9A9A9; }
+  .chuva { background-color: #1E90FF; }
+  .aguaceiros { background-color: #00BFFF; }
+  .neve { background-color: #87CEFA; color: #000; }
+  .nevoeiro { background-color: #C0C0C0; color: #000; }
+  .trovoada { background-color: #800080; }
+  .trovoada_chuva { background-color: #4B0082; }
+</style>
+</head>
+<body>
+<h2>Previsão do Tempo EUA</h2>
+<button onclick="buscarPrevisao()">GO</button>
+<div id="resultado"></div>
+
+<script>
+// Substitui aqui pela tua API Key gratuita
+const API_KEY = "e43fa6a24c746fb247d2d4ba335ac65d";
+
+// Lista de cidades
+const cidades = [
+  {nome: "Boston", lat: 42.36, lon: -71.06},
+  {nome: "New York City", lat: 40.71, lon: -74.01},
+  {nome: "Washington", lat: 38.90, lon: -77.04},
+  {nome: "Norfolk", lat: 36.85, lon: -76.29},
+  {nome: "Charlotte", lat: 35.23, lon: -80.84},
+  {nome: "Atlanta", lat: 33.75, lon: -84.39},
+  {nome: "Jacksonville", lat: 30.33, lon: -81.66},
+  {nome: "Tampa", lat: 27.95, lon: -82.46},
+  {nome: "Miami", lat: 25.76, lon: -80.19},
+  {nome: "New Orleans", lat: 29.95, lon: -90.07},
+  {nome: "Houston", lat: 29.76, lon: -95.37},
+  {nome: "Brownsville", lat: 25.90, lon: -97.50},
+  {nome: "San Antonio", lat: 29.42, lon: -98.49},
+  {nome: "El Paso", lat: 31.76, lon: -106.49},
+  {nome: "Albuquerque", lat: 35.08, lon: -106.65},
+  {nome: "Phoenix", lat: 33.44, lon: -112.07},
+  {nome: "Los Angeles", lat: 34.05, lon: -118.25},
+  {nome: "Las Vegas", lat: 36.17, lon: -115.14},
+  {nome: "San Francisco", lat: 37.77, lon: -122.42},
+  {nome: "Salt Lake City", lat: 40.76, lon: -111.89}
+];
+
+// Mapeamento de descrição para categoria
+function mapForecast(text) {
+  text = text.toLowerCase();
+  if (text.includes("snow") || text.includes("sleet") || text.includes("wintry")) return {cat:"neve", css:"neve", icon:"❄️"};
+  if (text.includes("shower")) return {cat:"aguaceiros", css:"aguaceiros", icon:"🌦️"};
+  if (text.includes("rain") || text.includes("drizzle")) return {cat:"chuva", css:"chuva", icon:"🌧️"};
+  if (text.includes("fog") || text.includes("mist")) return {cat:"nevoeiro", css:"nevoeiro", icon:"🌫️"};
+  if (text.includes("cloud")) return {cat:"nuvens", css:"nuvens", icon:"☁️"};
+  if (text.includes("sun") || text.includes("clear")) return {cat:"sol", css:"sol", icon:"☀️"};
+  if (text.includes("partly")) return {cat:"sol_nuvens", css:"sol_nuvens", icon:"⛅"};
+  if (text.includes("thunder") && text.includes("rain")) return {cat:"trovoada_chuva", css:"trovoada_chuva", icon:"⛈️"};
+  if (text.includes("thunder")) return {cat:"trovoada", css:"trovoada", icon:"🌩️"};
+  return {cat:"sol_nuvens", css:"sol_nuvens", icon:"⛅"};
+}
+
+async function buscarPrevisao() {
+  const resultadoDiv = document.getElementById("resultado");
+  resultadoDiv.innerHTML = "<p>A carregar...</p>";
+
+  const proxy = "https://api.allorigins.win/get?url="; // proxy público gratuito
+
+  const promises = cidades.map(async (cidade) => {
+    try {
+      const url = `https://api.openweathermap.org/data/2.5/onecall?lat=${cidade.lat}&lon=${cidade.lon}&exclude=current,minutely,hourly,alerts&units=imperial&appid=${API_KEY}`;
+      const fetchUrl = proxy + encodeURIComponent(url); // usando proxy
+      const res = await fetch(fetchUrl);
+      const dataText = await res.json();
+      const json = JSON.parse(dataText.contents);
+      const daily = json.daily[1]; // amanhã
+
+      const clima = mapForecast(daily.weather[0].description);
+      return {
+        nome: cidade.nome,
+        min: Math.round(daily.temp.min),
+        max: Math.round(daily.temp.max),
+        clima: clima
+      };
+    } catch (e) {
+      return {nome: cidade.nome, min: "-", max: "-", clima:{cat:"-", css:"", icon:"⛔"}};
+    }
+  });
+
+  const resultados = await Promise.all(promises);
+
+  // Monta tabelas 4 telas
+  let html = "";
+  for (let i=0; i<4; i++) {
+    html += `<h3>[Tela ${i+1}]</h3>`;
+    html += `<table><tr><th>#</th><th>Cidade</th><th>Mín. (°F)</th><th>Máx. (°F)</th><th>Clima</th></tr>`;
+    for (let j=0; j<5; j++) {
+      const idx = i*5 + j;
+      const r = resultados[idx];
+      html += `<tr>
+        <td>${idx+1}</td>
+        <td>${r.nome}</td>
+        <td>${r.min}</td>
+        <td>${r.max}</td>
+        <td class="clima ${r.clima.css}">${r.clima.icon} [${r.clima.cat}]</td>
+      </tr>`;
+    }
+    html += "</table>";
+  }
+
+  resultadoDiv.innerHTML = html;
+}
+</script>
+</body>
+</html>
